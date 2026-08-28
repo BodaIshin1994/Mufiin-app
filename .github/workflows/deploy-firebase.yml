@@ -30,3 +30,25 @@ jobs:
           projectId: '${{ vars.FIREBASE_PROJECT_ID }}'
           channelId: '${{ github.ref_name }}'
           expires: 30d
+
+  deploy_firestore_rules:
+    # Only from main (production rules) - dev/staging share the same
+    # Firestore database, there is no per-branch Firestore instance the
+    # way there is a per-branch Hosting channel, so rules only get pushed
+    # from the branch that represents the source of truth.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Deploy Firestore rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+        run: |
+          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          npm install -g firebase-tools
+          firebase deploy --only firestore:rules --project "${{ vars.FIREBASE_PROJECT_ID }}" --non-interactive
+          rm -f /tmp/sa.json
