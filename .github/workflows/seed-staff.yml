@@ -1,0 +1,33 @@
+name: Seed staff (grant barista role)
+
+on:
+  workflow_dispatch:
+    inputs:
+      uid:
+        description: "Firebase Auth UID to mark as barista (staff/{uid})"
+        required: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Write staff/{uid} doc via Admin SDK
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          PROJECT_ID: '${{ vars.FIREBASE_PROJECT_ID }}'
+          TARGET_UID: '${{ inputs.uid }}'
+        run: |
+          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          npm install firebase-admin
+          node -e "
+            const admin = require('firebase-admin');
+            admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId: process.env.PROJECT_ID });
+            admin.firestore().collection('staff').doc(process.env.TARGET_UID).set({ role: 'barista', addedAt: admin.firestore.FieldValue.serverTimestamp() })
+              .then(() => { console.log('staff doc written for', process.env.TARGET_UID); process.exit(0); })
+              .catch(err => { console.error(err); process.exit(1); });
+          "
+          rm -f /tmp/sa.json
