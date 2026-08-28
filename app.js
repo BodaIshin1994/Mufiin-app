@@ -36,7 +36,13 @@ import { firebaseConfig } from "./firebase-config.js";
 
   /* ---------------- local state ---------------- */
   var state = { orders: [] };
-  var role = localStorage.getItem('muffin_role') || 'employee';
+  // Роль больше НЕ выбирается пользователем и не хранится в localStorage -
+  // она определяется сервером: обычный сотрудник входит анонимно и всегда
+  // 'employee'; 'barista' присваивается только если текущий залогиненный
+  // Firebase-пользователь есть в коллекции staff/ (проверяется в determineRole()).
+  // Раньше это был клиентский переключатель без какой-либо проверки прав -
+  // см. историю в firestore.rules и "Что доработать" в DEPLOY.md.
+  var role = 'employee';
   var prefName = localStorage.getItem('muffin_name') || '';
   var prefFloor = localStorage.getItem('muffin_floor') || '';
   var tracked = {};
@@ -81,7 +87,7 @@ import { firebaseConfig } from "./firebase-config.js";
       fb = { app: app, db: db, auth: auth, fs: fsMod, authMod: authMod };
 
       authMod.onAuthStateChanged(auth, function(user){
-        if(user && !unsubscribeOrders){ subscribeOrders(); }
+        if(user){ determineRoleAndSubscribe(user); }
       });
       await authMod.signInAnonymously(auth);
     }catch(err){
@@ -92,8 +98,29 @@ import { firebaseConfig } from "./firebase-config.js";
     }
   }
 
-  function subscribeOrders(){
-    var q = fb.fs.query(fb.fs.collection(fb.db, 'orders'), fb.fs.orderBy('createdAt', 'desc'));
+  // Определяет, бариста ли текущий залогиненный пользователь (по наличию
+  // staff/{uid} в Firestore - см. firestore.rules), и подписывается на
+  // заказы соответствующим запросом. Вызывается при каждой смене auth-сессии
+  // (анонимный вход сотрудника, вход/выход бариста).
+  async function determineRoleAndSubscribe(user){
+    var wasBarista = role === 'barista';
+    try{
+      var staffDoc = await fb.fs.getDoc(fb.fs.doc(fb.db, 'staff', user.uid));
+      role = staffDoc.exists() ? 'barista' : 'employee';
+    }catch(err){
+      console.error('role check failed', err);
+      role = 'employee';
+    }
+    if(unsubscribeOrders){ unsubscribeOrders(); unsubscribeOrders = null; }
+    subscribeOrders(user.uid);
+    applyRole();
+    if(wasBarista !== (role==='barista')) setBaristaLoginUI();
+  }
+
+  function subscribeOrders(uid){
+    var q = role === 'barista'
+      ? fb.fs.query(fb.fs.collection(fb.db, 'orders'), fb.fs.orderBy('createdAt', 'desc'))
+      : fb.fs.query(fb.fs.collection(fb.db, 'orders'), fb.fs.where('creatorUid', '==', uid), fb.fs.orderBy('createdAt', 'desc'));
     unsubscribeOrders = fb.fs.onSnapshot(q, function(snap){
       hideOfflineBanner();
       setConn(true);
@@ -185,10 +212,7 @@ import { firebaseConfig } from "./firebase-config.js";
         '<div style="display:flex;align-items:center;">'+
           '<span class="conn-wrap"><span class="conn-dot" id="conn-dot"></span><span id="conn-label">подключение…</span></span>'+
           '<button type="button" class="install-btn" id="install-btn">⤓ Установить</button>'+
-          '<div class="role-switch" role="tablist" style="margin-left:10px;">'+
-            '<button type="button" data-role="employee">Я сотрудник</button>'+
-            '<button type="button" data-role="barista">Я бариста</button>'+
-          '</div>'+
+          '<div class="barista-login" id="barista-login" style="margin-left:10px;"></div>'+
         '</div>'+
       '</div>'+
       '<div class="banner" id="banner"></div>'+
@@ -242,8 +266,50 @@ import { firebaseConfig } from "./firebase-config.js";
 
     buildFormControls();
     wireForm();
-    wireRoleSwitch();
+    setBaristaLoginUI();
     applyRole();
+  }
+
+  /* ---------------- barista login (replaces the old client-only role toggle) ----------------
+     Вход бариста - настоящая Firebase Auth сессия (email+пароль), а не
+     переключатель в UI. Обычный сотрудник эту форму видит, но без верных
+     учётных данных бариста попасть в панель бариста не может - см.
+     firestore.rules (isBarista() проверяется на сервере). */
+  function setBaristaLoginUI(){
+    var box = document.getElementById('barista-login');
+    if(!box) return;
+    if(role === 'barista' && fb && fb.auth.currentUser){
+      box.innerHTML = '<span style="margin-right:8px;color:var(--ink-faint);font-size:.85rem;">Бариста: '+esc(fb.auth.currentUser.email||'')+'</span>'+
+        '<button type="button" id="barista-logout-btn" class="install-btn show">Выйти</button>';
+      var logoutBtn = document.getElementById('barista-logout-btn');
+      if(logoutBtn) logoutBtn.addEventListener('click', baristaLogout);
+    } else {
+      box.innerHTML = '<button type="button" id="barista-login-btn" class="install-btn show">Вход для бариста</button>';
+      var loginBtn = document.getElementById('barista-login-btn');
+      if(loginBtn) loginBtn.addEventListener('click', openBaristaLoginPrompt);
+    }
+  }
+
+  function openBaristaLoginPrompt(){
+    if(!fb){ showToast('Нет связи с сервером'); return; }
+    var email = window.prompt('Email бариста:');
+    if(!email) return;
+    var password = window.prompt('Пароль:');
+    if(!password) return;
+    fb.authMod.signInWithEmailAndPassword(fb.auth, email, password).catch(function(err){
+      console.error('barista login failed', err);
+      showToast('Не удалось войти — проверьте email и пароль');
+    });
+    // Успешный вход сам вызовет onAuthStateChanged -> determineRoleAndSubscribe,
+    // который выставит role='barista' только если email действительно есть в staff/.
+  }
+
+  function baristaLogout(){
+    if(!fb) return;
+    fb.authMod.signOut(fb.auth).then(function(){
+      return fb.authMod.signInAnonymously(fb.auth);
+    }).catch(function(err){ console.error('logout failed', err); });
+    // onAuthStateChanged подхватит новую анонимную сессию и вернёт role='employee'.
   }
 
   function buildFormControls(){
@@ -367,26 +433,14 @@ import { firebaseConfig } from "./firebase-config.js";
       ticketId: ticketId,
       seq: seq,
       status: 'new',
+      creatorUid: fb.auth.currentUser.uid,
       createdAt: fb.fs.serverTimestamp(),
       updatedAt: fb.fs.serverTimestamp()
     }));
     return ticketId;
   }
 
-  function wireRoleSwitch(){
-    document.querySelectorAll('.role-switch button').forEach(function(b){
-      b.addEventListener('click', function(){
-        role = b.getAttribute('data-role');
-        localStorage.setItem('muffin_role', role);
-        applyRole();
-      });
-    });
-  }
-
   function applyRole(){
-    document.querySelectorAll('.role-switch button').forEach(function(b){
-      b.classList.toggle('active', b.getAttribute('data-role')===role);
-    });
     document.getElementById('view-employee').classList.toggle('active', role==='employee');
     document.getElementById('view-barista').classList.toggle('active', role==='barista');
     renderOrderLists();
@@ -414,9 +468,10 @@ import { firebaseConfig } from "./firebase-config.js";
     if(!box) return;
     var name = (document.getElementById('f-name')||{}).value || prefName;
     var floor = (document.getElementById('f-floor')||{}).value || prefFloor;
-    var mine = state.orders.filter(function(o){
-      return (o.name||'').trim().toLowerCase() === (name||'').trim().toLowerCase() && o.floor === floor;
-    }).sort(function(a,b){ return new Date(b.createdAt) - new Date(a.createdAt); }).slice(0,15);
+    // state.orders для сотрудника уже приходит с сервера отфильтрованным по
+    // creatorUid (см. subscribeOrders) - здесь просто ещё сортируем/режем,
+    // без нужды дополнительно фильтровать по имени/этажу для приватности.
+    var mine = state.orders.slice().sort(function(a,b){ return new Date(b.createdAt) - new Date(a.createdAt); }).slice(0,15);
 
     if(!name || !floor){
       box.innerHTML = '<p class="empty-note">Укажите имя и этаж слева — здесь появятся статусы ваших заказов.</p>';
