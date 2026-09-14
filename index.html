@@ -9,6 +9,16 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#B8672A" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1B140E" media="(prefers-color-scheme: dark)">
+<script>
+  // Applied before first paint so a stored preference never flashes the
+  // wrong theme for a moment - see muffin_theme handling in app.js.
+  (function(){
+    try{
+      var t = localStorage.getItem('muffin_theme');
+      if(t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    }catch(e){}
+  })();
+</script>
 
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">

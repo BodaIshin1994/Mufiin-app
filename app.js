@@ -48,6 +48,30 @@ import { firebaseConfig } from "./firebase-config.js";
   var tracked = {};
   try{ tracked = JSON.parse(localStorage.getItem('muffin_tracked')||'{}'); }catch(e){}
 
+  /* ---------------- theme (auto / light / dark) ----------------
+     'auto' follows the OS via prefers-color-scheme (default, see styles.css);
+     'light'/'dark' pin an explicit choice via [data-theme] and persist it.
+     The initial paint is handled by an inline script in index.html (runs
+     before CSS/JS load) so a stored preference never flashes the wrong
+     theme for a moment - this just keeps the button in sync afterwards. */
+  var THEME_CYCLE = ['auto','light','dark'];
+  var THEME_LABEL = {auto:'Тема: авто', light:'Тема: светлая', dark:'Тема: тёмная'};
+  var theme = localStorage.getItem('muffin_theme') || 'auto';
+  if(THEME_CYCLE.indexOf(theme) === -1) theme = 'auto';
+
+  function applyTheme(){
+    if(theme === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', theme);
+    var btn = document.getElementById('theme-toggle');
+    if(btn) btn.textContent = THEME_LABEL[theme];
+  }
+
+  function cycleTheme(){
+    theme = THEME_CYCLE[(THEME_CYCLE.indexOf(theme)+1) % THEME_CYCLE.length];
+    localStorage.setItem('muffin_theme', theme);
+    applyTheme();
+  }
+
   // Populated once the Firebase SDK (loaded dynamically, see loadFirebase) is ready.
   // Everything renders from `state` regardless of whether this is set, so a slow or
   // failed network never leaves the page blank — only live sync/actions are gated on it.
@@ -211,6 +235,7 @@ import { firebaseConfig } from "./firebase-config.js";
         '<div class="brand"><span class="brand-mark">Muffin <span>·</span> кофе</span></div>'+
         '<div style="display:flex;align-items:center;">'+
           '<span class="conn-wrap"><span class="conn-dot" id="conn-dot"></span><span id="conn-label">подключение…</span></span>'+
+          '<button type="button" class="install-btn show" id="theme-toggle" style="margin-right:8px;"></button>'+
           '<button type="button" class="install-btn" id="install-btn">⤓ Установить</button>'+
           '<div class="barista-login" id="barista-login" style="margin-left:10px;"></div>'+
         '</div>'+
@@ -268,6 +293,10 @@ import { firebaseConfig } from "./firebase-config.js";
     wireForm();
     setBaristaLoginUI();
     applyRole();
+
+    applyTheme();
+    var themeBtn = document.getElementById('theme-toggle');
+    if(themeBtn) themeBtn.addEventListener('click', cycleTheme);
   }
 
   /* ---------------- barista login (replaces the old client-only role toggle) ----------------
