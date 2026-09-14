@@ -284,4 +284,10 @@ details.history[open] summary::after{transform:rotate(180deg);}
   color:var(--ink);font-weight:600;font-size:.8rem;padding:8px 14px;border-radius:999px;cursor:pointer;}
 .install-btn.show{display:inline-flex;}
 
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:50%;font-size:1rem;line-height:1;cursor:pointer;padding:0;
+  transition:background .15s,border-color .15s;}
+.icon-btn:hover{background:var(--accent-soft);border-color:var(--accent);}
+
 .footer-note{margin-top:34px;color:var(--ink-faint);font-size:.78rem;text-align:center;}

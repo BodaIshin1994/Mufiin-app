@@ -261,6 +261,7 @@ import { firebaseConfig } from "./firebase-config.js";
      before CSS/JS load) so a stored preference never flashes the wrong
      theme for a moment - this just keeps the button in sync afterwards. */
   var THEME_CYCLE = ['auto','light','dark'];
+  var THEME_ICON = {auto:'🌓', light:'☀️', dark:'🌙'};
   var theme = localStorage.getItem('muffin_theme') || 'auto';
   if(THEME_CYCLE.indexOf(theme) === -1) theme = 'auto';
 
@@ -268,7 +269,11 @@ import { firebaseConfig } from "./firebase-config.js";
     if(theme === 'auto') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', theme);
     var btn = document.getElementById('theme-toggle');
-    if(btn) btn.textContent = t('themeLabel')[theme];
+    if(btn){
+      btn.textContent = THEME_ICON[theme];
+      btn.title = t('themeLabel')[theme];
+      btn.setAttribute('aria-label', t('themeLabel')[theme]);
+    }
   }
 
   function cycleTheme(){
@@ -463,7 +468,7 @@ import { firebaseConfig } from "./firebase-config.js";
         '<div style="display:flex;align-items:center;">'+
           '<span class="conn-wrap"><span class="conn-dot" id="conn-dot"></span><span id="conn-label">'+esc(t('connConnecting'))+'</span></span>'+
           '<button type="button" class="install-btn show" id="lang-toggle" style="margin-right:8px;"></button>'+
-          '<button type="button" class="install-btn show" id="theme-toggle" style="margin-right:8px;"></button>'+
+          '<button type="button" class="icon-btn" id="theme-toggle" style="margin-right:8px;"></button>'+
           '<button type="button" class="install-btn" id="install-btn">'+esc(t('installBtn'))+'</button>'+
           '<div class="barista-login" id="barista-login" style="margin-left:10px;"></div>'+
         '</div>'+
