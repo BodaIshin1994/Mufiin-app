@@ -285,9 +285,20 @@ details.history[open] summary::after{transform:rotate(180deg);}
 .install-btn.show{display:inline-flex;}
 
 .icon-btn{display:inline-flex;align-items:center;justify-content:center;
-  width:34px;height:34px;background:var(--surface-2);border:1px solid var(--line);
-  border-radius:50%;font-size:1rem;line-height:1;cursor:pointer;padding:0;
-  transition:background .15s,border-color .15s;}
+  width:36px;height:36px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:50%;line-height:1;cursor:pointer;padding:0;position:relative;
+  transition:background .2s,border-color .2s,transform .15s;}
 .icon-btn:hover{background:var(--accent-soft);border-color:var(--accent);}
+.icon-btn:active{transform:scale(.92);}
+.icon-btn svg{width:18px;height:18px;color:var(--accent);overflow:visible;}
+.icon-btn .spin{animation:icon-flip .4s cubic-bezier(.34,1.56,.64,1);}
+@keyframes icon-flip{
+  0%{transform:rotate(0deg) scale(1);}
+  45%{transform:rotate(160deg) scale(.75);}
+  100%{transform:rotate(360deg) scale(1);}
+}
+@media (prefers-reduced-motion: reduce){
+  .icon-btn .spin{animation:none;}
+}
 
 .footer-note{margin-top:34px;color:var(--ink-faint);font-size:.78rem;text-align:center;}

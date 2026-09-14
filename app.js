@@ -261,7 +261,15 @@ import { firebaseConfig } from "./firebase-config.js";
      before CSS/JS load) so a stored preference never flashes the wrong
      theme for a moment - this just keeps the button in sync afterwards. */
   var THEME_CYCLE = ['auto','light','dark'];
-  var THEME_ICON = {auto:'🌓', light:'☀️', dark:'🌙'};
+  // Inline SVG rather than emoji - renders identically across platforms and
+  // can be recolored with currentColor to match the app's accent (see
+  // .icon-btn svg in styles.css). 'auto' is a half-sun/half-moon glyph so it
+  // reads as "follows system" rather than a third unrelated icon.
+  var THEME_SVG = {
+    light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>',
+    dark: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.7A8.5 8.5 0 0 1 9.3 3.5a8.5 8.5 0 1 0 11.2 11.2Z"/></svg>',
+    auto: '<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17Z" fill="currentColor" stroke="none"/></svg>'
+  };
   var theme = localStorage.getItem('muffin_theme') || 'auto';
   if(THEME_CYCLE.indexOf(theme) === -1) theme = 'auto';
 
@@ -270,7 +278,7 @@ import { firebaseConfig } from "./firebase-config.js";
     else document.documentElement.setAttribute('data-theme', theme);
     var btn = document.getElementById('theme-toggle');
     if(btn){
-      btn.textContent = THEME_ICON[theme];
+      btn.innerHTML = THEME_SVG[theme];
       btn.title = t('themeLabel')[theme];
       btn.setAttribute('aria-label', t('themeLabel')[theme]);
     }
@@ -280,6 +288,11 @@ import { firebaseConfig } from "./firebase-config.js";
     theme = THEME_CYCLE[(THEME_CYCLE.indexOf(theme)+1) % THEME_CYCLE.length];
     localStorage.setItem('muffin_theme', theme);
     applyTheme();
+    var svg = document.querySelector('#theme-toggle svg');
+    if(svg){
+      svg.classList.remove('spin'); svg.getBoundingClientRect(); // restart the animation on repeat clicks (SVGElement has no offsetWidth)
+      svg.classList.add('spin');
+    }
   }
 
   /* ---------------- language (ru / az) ----------------
