@@ -291,6 +291,8 @@ details.history[open] summary::after{transform:rotate(180deg);}
 .icon-btn:hover{background:var(--accent-soft);border-color:var(--accent);}
 .icon-btn:active{transform:scale(.92);}
 .icon-btn svg{width:18px;height:18px;color:var(--accent);overflow:visible;}
+.lang-badge{font-family:var(--font-mono);font-weight:700;font-size:.68rem;letter-spacing:.02em;
+  color:var(--accent);display:inline-block;}
 .icon-btn .spin{animation:icon-flip .4s cubic-bezier(.34,1.56,.64,1);}
 @keyframes icon-flip{
   0%{transform:rotate(0deg) scale(1);}

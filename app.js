@@ -313,6 +313,12 @@ import { firebaseConfig } from "./firebase-config.js";
     renderShell();
     if(lastConn.ok != null) setConn(lastConn.ok, lastConn.label);
     if(installPromptShown){ var btn = document.getElementById('install-btn'); if(btn) btn.classList.add('show'); }
+    // renderShell() just recreated the badge fresh, so simply having the
+    // class present triggers the enter animation - no remove/reflow dance
+    // needed here (that's only required to *restart* an animation on an
+    // element that already exists, see cycleTheme).
+    var badge = document.querySelector('#lang-toggle .lang-badge');
+    if(badge) badge.classList.add('spin');
   }
 
   // Populated once the Firebase SDK (loaded dynamically, see loadFirebase) is ready.
@@ -480,7 +486,7 @@ import { firebaseConfig } from "./firebase-config.js";
         '<div class="brand"><span class="brand-mark">Muffin <span>·</span> '+esc(t('brandSuffix'))+'</span></div>'+
         '<div style="display:flex;align-items:center;">'+
           '<span class="conn-wrap"><span class="conn-dot" id="conn-dot"></span><span id="conn-label">'+esc(t('connConnecting'))+'</span></span>'+
-          '<button type="button" class="install-btn show" id="lang-toggle" style="margin-right:8px;"></button>'+
+          '<button type="button" class="icon-btn" id="lang-toggle" style="margin-right:8px;"></button>'+
           '<button type="button" class="icon-btn" id="theme-toggle" style="margin-right:8px;"></button>'+
           '<button type="button" class="install-btn" id="install-btn">'+esc(t('installBtn'))+'</button>'+
           '<div class="barista-login" id="barista-login" style="margin-left:10px;"></div>'+
@@ -546,7 +552,12 @@ import { firebaseConfig } from "./firebase-config.js";
     var themeBtn = document.getElementById('theme-toggle');
     if(themeBtn) themeBtn.addEventListener('click', cycleTheme);
     var langBtn = document.getElementById('lang-toggle');
-    if(langBtn){ langBtn.textContent = t('langToggleLabel'); langBtn.addEventListener('click', cycleLang); }
+    if(langBtn){
+      langBtn.innerHTML = '<span class="lang-badge">'+lang.toUpperCase()+'</span>';
+      langBtn.title = t('langToggleLabel');
+      langBtn.setAttribute('aria-label', t('langToggleLabel'));
+      langBtn.addEventListener('click', cycleLang);
+    }
   }
 
   /* ---------------- barista login (replaces the old client-only role toggle) ----------------
